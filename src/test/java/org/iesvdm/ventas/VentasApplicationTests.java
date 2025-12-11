@@ -13,10 +13,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.fail;
 
@@ -82,12 +80,34 @@ class VentasApplicationTests {
 
         List<Pedido> list = pedidoRepository.findAll();
 
+        Calendar cal = Calendar.getInstance();
 
-        int count = 0;
+        List<Pedido> pedidos2017 = list.stream()
+                .filter(p -> {
+                    cal.setTime(p.getFecha());
+                    return cal.get(Calendar.YEAR) == 2017 && p.getTotal() > 500;
+                })
+                .collect(Collectors.toList());
+
+        int count = (int) list.stream()
+                .filter(p -> {
+                    cal.setTime(p.getFecha());
+                    return cal.get(Calendar.YEAR) == 2017 && p.getTotal() > 500;
+                })
+                .count();
+
         Assertions.assertEquals(3, count,
                 "Deben existir exactamente 3 pedidos en 2017 con total > 500€");
 
-        List<Integer> ids = new ArrayList<>();
+        List<Integer> ids = list.stream()
+                .filter(p -> {
+                    cal.setTime(p.getFecha());
+                    return cal.get(Calendar.YEAR) == 2017 && p.getTotal() > 500;
+                })
+                .map(Pedido::getId)
+                .sorted()
+                .collect(Collectors.toList());
+
         Assertions.assertIterableEquals(
                 java.util.Arrays.asList(5, 8, 12),
                 ids,
@@ -106,6 +126,14 @@ class VentasApplicationTests {
 
         List<Cliente> list = clienteRepository.findAll();
 
+        List<Integer> clientesSinPedidos = list.stream()
+                .filter(c -> c.getPedidos() == null || c.getPedidos().isEmpty())
+                .map(Cliente::getId)
+                .sorted()
+                .collect(Collectors.toList());
+
+        System.out.println("Clientes sin pedidos: " + clientesSinPedidos);
+
     }
 
     /**
@@ -115,6 +143,14 @@ class VentasApplicationTests {
     void test3() {
 
         List<Comercial> list = comercialRepository.findAll();
+
+        Optional<Float> maxComision = list.stream()
+                .map(Comercial::getComision)
+                .max(Float::compare);
+
+        maxComision.ifPresent(comision ->
+            System.out.println("Comisión máxima: " + comision)
+        );
 
     }
 
@@ -127,6 +163,17 @@ class VentasApplicationTests {
 
         List<Cliente> list = clienteRepository.findAll();
 
+        list.stream()
+                .filter(c -> c.getApellido2() != null)
+                .sorted(Comparator.comparing(Cliente::getApellido1)
+                        .thenComparing(Cliente::getApellido2)
+                        .thenComparing(Cliente::getNombre))
+                .forEach(c -> System.out.println(
+                    "ID: " + c.getId() +
+                    ", Nombre: " + c.getNombre() +
+                    ", Apellido1: " + c.getApellido1()
+                ));
+
     }
 
     /**
@@ -137,6 +184,12 @@ class VentasApplicationTests {
     void test5() {
 
         List<Comercial> list = comercialRepository.findAll();
+
+        list.stream()
+                .map(Comercial::getNombre)
+                .filter(nombre -> nombre.endsWith("el") || nombre.endsWith("o"))
+                .distinct()
+                .forEach(System.out::println);
 
     }
 
@@ -149,6 +202,19 @@ class VentasApplicationTests {
 
         List<Pedido> list = pedidoRepository.findAll();
 
+        Calendar cal = Calendar.getInstance();
+
+        list.stream()
+                .filter(p -> {
+                    cal.setTime(p.getFecha());
+                    return cal.get(Calendar.YEAR) == 2017
+                            && p.getTotal() >= 300
+                            && p.getTotal() <= 1000;
+                })
+                .map(Pedido::getCliente)
+                .distinct()
+                .forEach(System.out::println);
+
     }
 
 
@@ -159,6 +225,17 @@ class VentasApplicationTests {
     void test7() {
 
         List<Comercial> list = comercialRepository.findAll();
+
+        OptionalDouble media = list.stream()
+                .filter(c -> c.getNombre().equals("Daniel")
+                        && c.getApellido1().equals("Sáez"))
+                .flatMap(c -> c.getPedidos().stream())
+                .mapToDouble(Pedido::getTotal)
+                .average();
+
+        media.ifPresent(m ->
+            System.out.println("Media de pedidos de Daniel Sáez: " + m)
+        );
 
     }
 
@@ -173,6 +250,10 @@ class VentasApplicationTests {
 
         List<Pedido> list = pedidoRepository.findAll();
 
+        list.stream()
+                .sorted(Comparator.comparing(Pedido::getFecha).reversed())
+                .forEach(System.out::println);
+
     }
 
     /**
@@ -182,6 +263,11 @@ class VentasApplicationTests {
     void test9() {
 
         List<Pedido> list = pedidoRepository.findAll();
+
+        list.stream()
+                .sorted(Comparator.comparing(Pedido::getTotal).reversed())
+                .limit(2)
+                .forEach(System.out::println);
 
     }
 
@@ -194,6 +280,12 @@ class VentasApplicationTests {
 
         List<Pedido> list = pedidoRepository.findAll();
 
+        list.stream()
+                .map(p -> p.getCliente().getId())
+                .distinct()
+                .sorted()
+                .forEach(System.out::println);
+
     }
 
     /**
@@ -204,6 +296,12 @@ class VentasApplicationTests {
     void test11() {
 
         List<Comercial> list = comercialRepository.findAll();
+
+        list.stream()
+                .filter(c -> c.getComision() >= 0.05 && c.getComision() <= 0.11)
+                .forEach(c -> System.out.println(
+                    c.getNombre() + " " + c.getApellido1() + " " + c.getApellido2()
+                ));
 
     }
 
@@ -216,6 +314,14 @@ class VentasApplicationTests {
     void test12() {
 
         List<Comercial> list = comercialRepository.findAll();
+
+        Optional<Float> minComision = list.stream()
+                .map(Comercial::getComision)
+                .min(Float::compare);
+
+        minComision.ifPresent(comision ->
+            System.out.println("Comisión mínima: " + comision)
+        );
 
     }
 
@@ -230,6 +336,14 @@ class VentasApplicationTests {
 
         List<Comercial> list = comercialRepository.findAll();
 
+        list.stream()
+                .map(Comercial::getNombre)
+                .filter(nombre -> (nombre.startsWith("A") && nombre.endsWith("n"))
+                        || nombre.startsWith("P"))
+                .distinct()
+                .sorted()
+                .forEach(System.out::println);
+
     }
 
     /**
@@ -242,6 +356,14 @@ class VentasApplicationTests {
 
         List<Cliente> list = clienteRepository.findAll();
 
+        list.stream()
+                .map(Cliente::getNombre)
+                .filter(nombre -> (nombre.startsWith("A") && nombre.endsWith("n"))
+                        || nombre.startsWith("P"))
+                .distinct()
+                .sorted()
+                .forEach(System.out::println);
+
     }
 
     /**
@@ -252,6 +374,13 @@ class VentasApplicationTests {
     void test15() {
 
         List<Cliente> list = clienteRepository.findAll();
+
+        list.stream()
+                .filter(c -> !c.getNombre().startsWith("A"))
+                .sorted(Comparator.comparing(Cliente::getNombre)
+                        .thenComparing(Cliente::getApellido1)
+                        .thenComparing(Comparator.nullsLast(Comparator.comparing(Cliente::getApellido2, Comparator.nullsLast(Comparator.naturalOrder())))))
+                .forEach(System.out::println);
 
     }
 
@@ -265,6 +394,19 @@ class VentasApplicationTests {
     void test16() {
 
         List<Pedido> list = pedidoRepository.findAll();
+
+        list.stream()
+                .map(Pedido::getCliente)
+                .distinct()
+                .sorted(Comparator.comparing(Cliente::getApellido1)
+                        .thenComparing(Comparator.nullsLast(Comparator.comparing(Cliente::getApellido2, Comparator.nullsLast(Comparator.naturalOrder()))))
+                        .thenComparing(Cliente::getNombre))
+                .forEach(c -> System.out.println(
+                    "ID: " + c.getId() +
+                    ", Nombre: " + c.getNombre() +
+                    ", Apellido1: " + c.getApellido1() +
+                    ", Apellido2: " + c.getApellido2()
+                ));
 
     }
 
@@ -288,6 +430,19 @@ class VentasApplicationTests {
 
         List<Cliente> list = clienteRepository.findAll();
 
+        list.stream()
+                .sorted(Comparator.comparing(Cliente::getNombre)
+                        .thenComparing(Cliente::getApellido1)
+                        .thenComparing(Comparator.nullsLast(Comparator.comparing(Cliente::getApellido2, Comparator.nullsLast(Comparator.naturalOrder())))))
+                .forEach(cliente -> {
+                    System.out.println(cliente);
+                    if (cliente.getPedidos() != null) {
+                        cliente.getPedidos().forEach(pedido ->
+                            System.out.println("  " + pedido)
+                        );
+                    }
+                });
+
     }
 
     /**
@@ -300,6 +455,19 @@ class VentasApplicationTests {
 
         List<Comercial> list = comercialRepository.findAll();
 
+        list.stream()
+                .sorted(Comparator.comparing(Comercial::getApellido1)
+                        .thenComparing(Comparator.nullsLast(Comparator.comparing(Comercial::getApellido2, Comparator.nullsLast(Comparator.naturalOrder()))))
+                        .thenComparing(Comercial::getNombre))
+                .forEach(comercial -> {
+                    System.out.println(comercial);
+                    if (comercial.getPedidos() != null) {
+                        comercial.getPedidos().forEach(pedido ->
+                            System.out.println("  " + pedido)
+                        );
+                    }
+                });
+
     }
 
     /**
@@ -310,6 +478,16 @@ class VentasApplicationTests {
     void test19() {
 
         List<Pedido> list = pedidoRepository.findAll();
+
+        list.stream()
+                .filter(p -> p.getCliente().getNombre().equals("María")
+                        && p.getCliente().getApellido1().equals("Santana")
+                        && p.getCliente().getApellido2().equals("Moreno"))
+                .map(Pedido::getComercial)
+                .distinct()
+                .forEach(c -> System.out.println(
+                    c.getNombre() + " " + c.getApellido1() + " " + c.getApellido2()
+                ));
 
     }
 
@@ -322,6 +500,10 @@ class VentasApplicationTests {
 
         List<Comercial> list = comercialRepository.findAll();
 
+        list.stream()
+                .filter(c -> c.getPedidos() == null || c.getPedidos().isEmpty())
+                .forEach(System.out::println);
+
     }
 
     /**
@@ -332,6 +514,13 @@ class VentasApplicationTests {
 
         List<Pedido> list = pedidoRepository.findAll();
 
+        long totalComerciales = list.stream()
+                .map(Pedido::getComercial)
+                .distinct()
+                .count();
+
+        System.out.println("Total de comerciales distintos: " + totalComerciales);
+
     }
 
     /**
@@ -341,6 +530,17 @@ class VentasApplicationTests {
     void test22() {
 
         List<Pedido> list = pedidoRepository.findAll();
+
+        Optional<double[]> result = list.stream()
+                .map(p -> new double[]{p.getTotal(), p.getTotal()})
+                .reduce((a, b) -> new double[]{
+                    Math.max(a[0], b[0]),  // máximo
+                    Math.min(a[1], b[1])   // mínimo
+                });
+
+        result.ifPresent(r -> System.out.println(
+            "Máximo: " + r[0] + ", Mínimo: " + r[1]
+        ));
 
     }
 
@@ -440,6 +640,16 @@ class VentasApplicationTests {
     void test30() throws ParseException {
 
         List<Pedido> list = pedidoRepository.findAll();
+
+        DoubleSummaryStatistics stats = list.stream()
+                .collect(Collectors.summarizingDouble(Pedido::getTotal));
+
+        System.out.println("Estadísticas de pedidos:");
+        System.out.println("Count: " + stats.getCount());
+        System.out.println("Sum: " + stats.getSum());
+        System.out.println("Min: " + stats.getMin());
+        System.out.println("Average: " + stats.getAverage());
+        System.out.println("Max: " + stats.getMax());
 
     }
 
